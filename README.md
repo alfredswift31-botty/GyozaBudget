@@ -6,6 +6,24 @@ Gyoza Budget is a SwiftUI personal finance app designed to make daily expense tr
 
 Gyoza Budget v3.0 transforms the original SwiftData starter project into a full budgeting app with real product structure, onboarding, themes, and guided user flow.
 
+## Version 3.0 Update
+
+Version 3.0 is focused on turning Gyoza Budget into a more complete, polished, and practical budgeting companion. This update brings the app closer to a real daily finance tool with clearer setup, faster expense entry, better visual organization, and more ways to personalize the experience.
+
+### Update Summary
+
+- Expanded the app from basic data storage into a full personal finance workflow.
+- Added structured transaction tracking for income, expenses, categories, dates, notes, and receipt images.
+- Introduced monthly category budgets so users can compare spending against planned targets.
+- Added savings goals with progress tracking and completion state.
+- Added onboarding and guided setup so first-time users know what to do next.
+- Added Quick Add support for faster expense entry.
+- Added App Intent support for opening Quick Add through shortcuts or deep links.
+- Added Light, Dark, and Zen themes with shared app preferences.
+- Improved dashboard hierarchy, summary cards, spacing, and theme-aware styling.
+- Added settings for currency, theme, Quick Add preferences, onboarding reset, and data reset.
+- Updated the project release version to `3.0` with build number `3`.
+
 ### What’s New in v3.0
 
 - Built a full transaction tracking system with income, expense, categories, notes, dates, and receipt image support.

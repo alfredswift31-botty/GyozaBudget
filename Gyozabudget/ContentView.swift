@@ -534,7 +534,7 @@ struct ContentView: View {
         .offset(y: showsCompactTitle ? 0 : -6)
         .clipped()
         .allowsHitTesting(showsCompactTitle)
-        .animation(.easeInOut(duration: 0.2), value: showsCompactTitle)
+        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: showsCompactTitle)
     }
 
     private var dashboardTopActions: some View {
@@ -587,7 +587,7 @@ struct ContentView: View {
         let hideThreshold: CGFloat = 68
         let shouldShowTitle = showsCompactTitle ? minY < hideThreshold : minY < showThreshold
         if shouldShowTitle != showsCompactTitle {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
                 showsCompactTitle = shouldShowTitle
             }
         }
@@ -1042,11 +1042,17 @@ struct ContentView: View {
             .onChange(of: selectedReceiptItem) { _, newItem in
                 guard let newItem else { return }
                 Task {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let processedData = processedReceiptImageData(from: data) {
-                        await MainActor.run {
-                            receiptImageData = processedData
-                            hasLoadedReceiptState = true
+                    if let data = try? await newItem.loadTransferable(type: Data.self) {
+                        // Offload heavy rendering from the MainActor
+                        let processedData = await Task.detached {
+                            processedReceiptImageData(from: data)
+                        }.value
+                        
+                        if let processedData {
+                            await MainActor.run {
+                                receiptImageData = processedData
+                                hasLoadedReceiptState = true
+                            }
                         }
                     }
                     await MainActor.run {
@@ -1098,7 +1104,7 @@ struct ContentView: View {
                     .disabled(Double(newAmountText) == nil || newAmountText.isEmpty)
                 }
             }
-            .confirmationDialog("Delete this transaction?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+            .alert("Are you sure you want to delete this transaction?", isPresented: $showingDeleteConfirmation) {
                 if let transaction {
                     Button("Delete Transaction", role: .destructive) {
                         deleteCurrentTransaction(transaction)
@@ -1192,12 +1198,12 @@ struct ContentView: View {
 
     private func showFeedback(message: String) {
         feedbackDismissWorkItem?.cancel()
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
             feedbackMessage = message
         }
 
         let workItem = DispatchWorkItem {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
                 feedbackMessage = nil
             }
         }
@@ -1280,7 +1286,8 @@ struct ContentView: View {
         return editingTransaction?.receiptImageData
     }
 
-    private func processedReceiptImageData(from data: Data) -> Data? {
+    // Detach from the View's MainActor isolation
+    nonisolated private func processedReceiptImageData(from data: Data) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
 
         let maxDimension: CGFloat = 1600
@@ -1341,125 +1348,130 @@ private struct QuickAddExpenseSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Quick Add Expense")
-                        .font(.title3.weight(.semibold))
-                        .foregroundColor(theme.textPrimary)
-                    Text("Fast capture for a single expense.")
-                        .font(.subheadline)
-                        .foregroundColor(theme.textSecondary)
-                }
-                Spacer()
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(theme.textSecondary)
-                        .padding(8)
-                        .background(
-                            Circle()
-                                .fill(theme.surface.opacity(0.6))
-                        )
-                }
-            }
-
-            VStack(spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(currencySymbol)
-                        .font(.system(size: 34, weight: .semibold, design: .rounded))
-                        .foregroundColor(theme.textPrimary)
-                    TextField("0.00", text: $amountText)
-                        .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .multilineTextAlignment(.center)
-                        .focused($amountFieldIsFocused)
-#if os(iOS)
-                        .keyboardType(.decimalPad)
-                        .textContentType(.none)
-                        .submitLabel(.done)
-#endif
-                }
-                .padding(22)
-                .frame(maxWidth: .infinity)
-                .appPanelCard(cornerRadius: 24, emphasized: true)
-
-                Text("Amount is the fastest input. Tap and enter the value.")
-                    .font(.footnote)
-                    .foregroundColor(theme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Category")
-                    .font(.headline)
-                    .foregroundColor(theme.textPrimary)
-
-                let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-                    ForEach(Category.allCases) { category in
-                        Button {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                selectedCategory = category
-                            }
-                        } label: {
-                            Text(category.displayName)
-                                .font(.subheadline.weight(.medium))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 14)
-                                .frame(maxWidth: .infinity)
-                                .background(
-                                    Capsule()
-                                        .fill(selectedCategory == category ? theme.accent : theme.surface)
-                                )
-                                .overlay(
-                                    Capsule()
-                                        .stroke(selectedCategory == category ? theme.accent.opacity(0.12) : theme.border.opacity(0.8), lineWidth: 1)
-                                )
-                                .foregroundColor(selectedCategory == category ? theme.premiumOnAccent : theme.textPrimary)
-                        }
-                        .buttonStyle(.plain)
+        ScrollView {
+            VStack(spacing: 24) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Quick Add Expense")
+                            .font(.title3.weight(.semibold))
+                            .foregroundColor(theme.textPrimary)
+                        Text("Fast capture for a single expense.")
+                            .font(.subheadline)
+                            .foregroundColor(theme.textSecondary)
+                    }
+                    Spacer()
+                    Button {
+                        isPresented = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(theme.textSecondary)
+                            .padding(8)
+                            .background(
+                                Circle()
+                                    .fill(theme.surface.opacity(0.6))
+                            )
                     }
                 }
-            }
-            .padding(20)
-            .appPanelCard(cornerRadius: 24)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Note")
-                    .font(.headline)
-                    .foregroundColor(theme.textPrimary)
-                TextField("Optional note", text: $note)
-                    .textFieldStyle(.roundedBorder)
-            }
-            .padding(20)
-            .appPanelCard(cornerRadius: 24)
-
-            Spacer()
-
-            Button {
-                onSave()
-            } label: {
-                Text("Save Expense")
-                    .font(.headline)
+                VStack(spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(currencySymbol)
+                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .foregroundColor(theme.textPrimary)
+                        TextField("0.00", text: $amountText)
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .multilineTextAlignment(.center)
+                            .focused($amountFieldIsFocused)
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+                            .textContentType(.none)
+                            .submitLabel(.done)
+#endif
+                    }
+                    .padding(22)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .appPanelCard(cornerRadius: 24, emphasized: true)
+
+                    Text("Amount is the fastest input. Tap and enter the value.")
+                        .font(.footnote)
+                        .foregroundColor(theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Category")
+                        .font(.headline)
+                        .foregroundColor(theme.textPrimary)
+
+                    let columns = [GridItem(.adaptive(minimum: 110), spacing: 10)]
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+                        ForEach(Category.allCases) { category in
+                            Button {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                    selectedCategory = category
+                                }
+                            } label: {
+                                Text(category.displayName)
+                                    .font(.subheadline.weight(.medium))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 14)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        Capsule()
+                                            .fill(selectedCategory == category ? Color.primary : theme.surface)
+                                    )
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(selectedCategory == category ? Color.primary.opacity(0.12) : theme.border.opacity(0.8), lineWidth: 1)
+                                    )
+                                    .foregroundColor(selectedCategory == category ? theme.background : theme.textPrimary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(20)
+                .appPanelCard(cornerRadius: 24)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Note")
+                        .font(.headline)
+                        .foregroundColor(theme.textPrimary)
+                    TextField("Optional note", text: $note)
+                        .textFieldStyle(.roundedBorder)
+                }
+                .padding(20)
+                .appPanelCard(cornerRadius: 24)
+
+                Spacer().frame(height: 20)
+
+                Button {
+                    onSave()
+                } label: {
+                    Text("Save Expense")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.primary)
+                        .foregroundColor(theme.background)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .opacity(isAmountValid ? 1 : 0.55)
+                .disabled(!isAmountValid)
             }
-            .buttonStyle(AppPrimaryButtonStyle())
-            .opacity(isAmountValid ? 1 : 0.55)
-            .disabled(!isAmountValid)
+            .padding(20)
         }
-        .padding(20)
+        .scrollDismissesKeyboard(.interactively)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(theme.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 8)
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
-        .animation(.easeOut(duration: 0.22), value: isPresented)
+        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: isPresented)
         .onAppear {
             amountFieldIsFocused = true
         }

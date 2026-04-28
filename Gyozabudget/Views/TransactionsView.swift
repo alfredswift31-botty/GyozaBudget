@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct TransactionsView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     let transactions: [Transaction]
     let currencyStyle: FloatingPointFormatStyle<Double>.Currency
     let onTapTransaction: (Transaction) -> Void
@@ -48,14 +50,16 @@ struct TransactionsView: View {
                                 .onTapGesture {
                                     onTapTransaction(transaction)
                                 }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        deleteAction(transaction)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
                         }
+                    .onDelete { indexSet in
+                        withAnimation {
+                            for index in indexSet {
+                                let transaction = transactions[index]
+                                modelContext.delete(transaction)
+                            }
+                            try? modelContext.save()
+                        }
+                    }
                     }
                 }
             }

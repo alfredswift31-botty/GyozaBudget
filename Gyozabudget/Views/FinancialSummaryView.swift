@@ -1,5 +1,5 @@
 import SwiftUI
-
+import SwiftData
 enum FinancialSummaryMode: String, Hashable {
     case balance
     case income
@@ -74,6 +74,7 @@ enum FinancialSummaryMode: String, Hashable {
 
 struct FinancialSummaryView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
 
     let mode: FinancialSummaryMode
     let transactions: [Transaction]
@@ -223,13 +224,15 @@ struct FinancialSummaryView: View {
                             .onTapGesture {
                                 onTapTransaction(transaction)
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    deleteAction(transaction)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                    }
+                    .onDelete { indexSet in
+                        withAnimation {
+                            for index in indexSet {
+                                let transaction = displayedTransactions[index]
+                                modelContext.delete(transaction)
                             }
+                            try? modelContext.save()
+                        }
                     }
                 }
             }

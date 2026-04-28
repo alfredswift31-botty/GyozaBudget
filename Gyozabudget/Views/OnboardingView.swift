@@ -47,7 +47,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 32)
         }
-        .animation(.easeInOut(duration: 0.22), value: step)
+        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: step)
     }
 
     private var progressLabel: some View {

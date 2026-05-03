@@ -10,6 +10,15 @@ Gyoza Budget v3.0 transforms the original SwiftData starter project into a full 
 
 - App compatibility is now explicitly limited to iPhone and iPad builds, removing accidental macOS and visionOS target support.
 
+## Version 3.4 Update
+
+- Reset All Data now clears transactions, budgets, and savings goals.
+- Swipe-to-delete is now reused consistently across transaction lists.
+- Transaction rows now show a date fallback instead of redundant type text.
+- Savings goal Add Money validation is safer.
+- Zen/theme primary button contrast improved.
+- Removed dead code and cleaned shared components.
+
 ## Version 3.3 Update
 
 - Fixed current-month budget totals so future-dated transactions are excluded.
@@ -105,4 +114,4 @@ Version 3.0 is a major feature and UI upgrade focused on turning the app from a 
 
 ## Version
 
-Current release: `v3.3`
+Current release: `v3.4`

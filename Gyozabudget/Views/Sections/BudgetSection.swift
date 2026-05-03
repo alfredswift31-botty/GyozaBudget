@@ -3,7 +3,7 @@ import SwiftUI
 struct BudgetSection: View {
     @Environment(\.colorScheme) private var colorScheme
     struct BudgetData: Identifiable {
-        let id = UUID()
+        var id: Category { category }
         let category: Category
         let actual: Double
         let target: Double
@@ -64,7 +64,7 @@ struct BudgetSection: View {
                                 }
                             }
 
-                            Text(item.target > 0 ? "Spent " + item.actual.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")) + " of " + item.target.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")) : "No budget target set.")
+                            Text(item.target > 0 ? "Spent " + item.actual.formatted(currencyStyle) + " of " + item.target.formatted(currencyStyle) : "No budget target set.")
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
 

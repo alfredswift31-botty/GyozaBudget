@@ -6,4 +6,7 @@ enum AppPreferences {
     static let currencyCodeKey = "currencyCode"
     static let defaultCurrencyCode = Locale.current.currency?.identifier ?? "USD"
     static let supportedCurrencyCodes = ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "MMK"]
+    static let lastQuickAddCategoryKey = "lastQuickAddCategory"
+    static let rememberLastQuickAddCategoryKey = "rememberLastQuickAddCategory"
+    static let quickAddHapticsEnabledKey = "quickAddHapticsEnabled"
 }

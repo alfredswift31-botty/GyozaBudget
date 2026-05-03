@@ -63,7 +63,12 @@ struct GyozabudgetApp: App {
 
     private func handleDeepLink(_ url: URL) {
         if url.scheme == "gyozabudget" && (url.host == "quick-add" || url.path.contains("quick-add")) {
-            openQuickAdd = true
+            // Reset first so a repeat deep-link with the same value still
+            // produces a state transition that SwiftUI can observe.
+            openQuickAdd = false
+            DispatchQueue.main.async {
+                openQuickAdd = true
+            }
         }
     }
 

@@ -41,9 +41,9 @@ struct ContentView: View {
     @State private var newType: TransactionType = .expense
     @State private var newCategory: Category = .food
     @State private var quickCategory: Category = .food
-    @AppStorage("lastQuickAddCategory") private var lastQuickAddCategoryRaw = Category.food.rawValue
-    @AppStorage("rememberLastQuickAddCategory") private var rememberLastQuickAddCategory = false
-    @AppStorage("quickAddHapticsEnabled") private var quickAddHapticsEnabled = true
+    @AppStorage(AppPreferences.lastQuickAddCategoryKey) private var lastQuickAddCategoryRaw = Category.food.rawValue
+    @AppStorage(AppPreferences.rememberLastQuickAddCategoryKey) private var rememberLastQuickAddCategory = false
+    @AppStorage(AppPreferences.quickAddHapticsEnabledKey) private var quickAddHapticsEnabled = true
     @AppStorage(AppPreferences.currencyCodeKey) private var currencyCode = AppPreferences.defaultCurrencyCode
     @State private var newDate = Date()
     @State private var newNote = ""
@@ -86,11 +86,15 @@ struct ContentView: View {
     }
 
     private var quickAddCurrencySymbol: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode
-        formatter.locale = .autoupdatingCurrent
-        return formatter.currencySymbol ?? currencyCode
+        // Derive the symbol from the same FormatStyle used everywhere else so
+        // the Quick Add hint can never disagree with the formatted amount.
+        let sample = (0.0).formatted(currencyStyle)
+        let symbol = sample.replacingOccurrences(
+            of: "[0-9.,\\s\\u{00A0}\\u{202F}\\-]",
+            with: "",
+            options: .regularExpression
+        )
+        return symbol.isEmpty ? currencyCode : symbol
     }
 
     private var expenseCategoryTotals: [(category: Category, amount: Double)] {
@@ -105,9 +109,15 @@ struct ContentView: View {
         Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date())) ?? Date()
     }
 
+    private var nextMonthStart: Date {
+        Calendar.current.date(byAdding: .month, value: 1, to: currentMonthStart) ?? currentMonthStart
+    }
+
     private var currentMonthExpenseTotals: [Category: Double] {
+        let start = currentMonthStart
+        let end = nextMonthStart
         let expenses = transactions.filter {
-            $0.type == .expense && $0.date >= currentMonthStart
+            $0.type == .expense && $0.date >= start && $0.date < end
         }
         return expenses.reduce(into: [:]) { partial, transaction in
             partial[transaction.category, default: 0] += transaction.amount
@@ -380,9 +390,6 @@ struct ContentView: View {
                         if currentGuidedStep != .allSet {
                             primaryActionCard
                         }
-                        if let feedbackMessage {
-                            feedbackBanner(message: feedbackMessage)
-                        }
                         summaryView
                         monthlyBudgetPreviewCard
                         savingsGoalsPreviewCard
@@ -397,6 +404,14 @@ struct ContentView: View {
                 }
                 .coordinateSpace(name: "dashboardScroll")
                 .background(theme.background.ignoresSafeArea())
+
+                if let feedbackMessage {
+                    feedbackBanner(message: feedbackMessage)
+                        .padding(.horizontal)
+                        .padding(.top, showsCompactTitle ? 44 : 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: showsCompactTitle)
+                }
 
                 compactDashboardBar
                     .zIndex(1)
@@ -660,11 +675,8 @@ struct ContentView: View {
                     .font(.headline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(theme.accent)
-                    .foregroundColor(theme.premiumOnAccent)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AppPrimaryButtonStyle())
         }
         .padding(22)
         .premiumCard(cornerRadius: 24, emphasis: isBudgetSetupHighlighted)
@@ -887,13 +899,12 @@ struct ContentView: View {
             editingTransaction = nil
             showingAddTransaction = false
             showingDeleteConfirmation = false
-            resetForm()
         }
     }
 
     private func prepareForm(for transaction: Transaction?) {
         if let transaction {
-            newAmountText = String(transaction.amount)
+            newAmountText = String(format: "%.2f", transaction.amount)
             newType = transaction.type
             newCategory = transaction.category
             newDate = transaction.date
@@ -1149,7 +1160,6 @@ struct ContentView: View {
         }
         showingDeleteConfirmation = false
         showingReceiptPreview = false
-        resetForm()
     }
 
     private func saveContext() {

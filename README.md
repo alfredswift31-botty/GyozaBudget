@@ -10,6 +10,14 @@ Gyoza Budget v3.0 transforms the original SwiftData starter project into a full 
 
 - App compatibility is now explicitly limited to iPhone and iPad builds, removing accidental macOS and visionOS target support.
 
+## Version 3.3 Update
+
+- Fixed current-month budget totals so future-dated transactions are excluded.
+- Stabilized budget row identity for smoother progress animations.
+- Improved transaction edit amount formatting to avoid floating-point display artifacts.
+- Fixed repeated Quick Add deep-link triggering so the sheet reopens reliably.
+- Aligned the Quick Add currency symbol with the selected currency formatting.
+
 ## Version 3.2 Update
 
 - Improved dashboard and onboarding motion with smoother spring-based transitions.
@@ -97,4 +105,4 @@ Version 3.0 is a major feature and UI upgrade focused on turning the app from a 
 
 ## Version
 
-Current release: `v3.2`
+Current release: `v3.3`

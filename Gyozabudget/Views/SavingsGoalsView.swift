@@ -472,11 +472,11 @@ struct SavingsGoalsView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(enteredAmount > 0 ? Color.appPrimaryText(for: colorScheme) : Color.appBorder(for: colorScheme))
+                    .background(isAddMoneyAmountValid ? Color.appPrimaryText(for: colorScheme) : Color.appBorder(for: colorScheme))
                     .foregroundColor(Color.appBackground(for: colorScheme))
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .disabled(enteredAmount <= 0)
+            .disabled(!isAddMoneyAmountValid)
         }
         .padding(20)
         .onAppear {
@@ -563,9 +563,13 @@ struct SavingsGoalsView: View {
         }
     }
 
+    private var isAddMoneyAmountValid: Bool {
+        guard let amount = Double(addMoneyText) else { return false }
+        return amount > 0
+    }
+
     private func saveAddMoney(for goal: SavingsGoal) {
-        let amount = Double(addMoneyText) ?? addMoneySliderValue
-        guard amount > 0 else { return }
+        guard let amount = Double(addMoneyText), amount > 0 else { return }
         withAnimation {
             goal.currentAmount += amount
             goal.isCompleted = goal.currentAmount >= goal.targetAmount

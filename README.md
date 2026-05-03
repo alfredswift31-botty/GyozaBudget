@@ -2,9 +2,11 @@
 
 Gyoza Budget is a SwiftUI personal finance app designed to make daily expense tracking, monthly budgeting, and savings goals feel simple, fast, and visually polished.
 
-![simulator_screenshot_B084CCE7-6426-4E65-B4A4-68B1ABF32766](https://github.com/user-attachments/assets/80440c4e-981c-4193-9100-b46506158c95)
-![simulator_screenshot_9D9100FB-C52F-4316-A458-46AEAE452ED0](https://github.com/user-attachments/assets/caeb55a8-fd47-4d11-a6a9-66d5373d1281)
-<img width="1170" height="2532" alt="simulator_screenshot_17CF0184-B8B9-4C88-AD87-D319AFAA34A2" src="https://github.com/user-attachments/assets/dca02b6a-6b59-42b5-89fb-6f70e6abb3a9" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/80440c4e-981c-4193-9100-b46506158c95" width="300"/>
+  <img src="https://github.com/user-attachments/assets/caeb55a8-fd47-4d11-a6a9-66d5373d1281" width="300"/>
+  <img src="https://github.com/user-attachments/assets/dca02b6a-6b59-42b5-89fb-6f70e6abb3a9" width="300"/>
+</p>
 
 
 ## Version 3.0 Highlights

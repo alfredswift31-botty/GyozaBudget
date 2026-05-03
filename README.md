@@ -19,6 +19,10 @@ Gyoza Budget v3.0 transforms the original SwiftData starter project into a full 
 - Zen/theme primary button contrast improved.
 - Removed dead code and cleaned shared components.
 
+Minor fixes:
+- Fixed Quick Add currency symbol rendering issue
+- Fixed Set Budget button layout inconsistency
+
 ## Version 3.3 Update
 
 - Fixed current-month budget totals so future-dated transactions are excluded.

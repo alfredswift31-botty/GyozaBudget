@@ -200,6 +200,24 @@ struct AppTheme {
         option == .light ? Color.white : Color(hex: "#F6F7F4")
     }
 
+    var primaryButtonFill: Color {
+        switch option {
+        case .light, .dark:
+            return accent
+        case .zen:
+            return secondary
+        }
+    }
+
+    var primaryButtonText: Color {
+        switch option {
+        case .light, .zen:
+            return Color.white
+        case .dark:
+            return background
+        }
+    }
+
     func premiumCardFillGradient(emphasis: Bool) -> LinearGradient {
         switch option {
         case .light:

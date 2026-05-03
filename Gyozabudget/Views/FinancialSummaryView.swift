@@ -74,7 +74,6 @@ enum FinancialSummaryMode: String, Hashable {
 
 struct FinancialSummaryView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.modelContext) private var modelContext
 
     let mode: FinancialSummaryMode
     let transactions: [Transaction]
@@ -180,10 +179,9 @@ struct FinancialSummaryView: View {
 
     private var balanceBreakdownCard: some View {
         VStack(spacing: 16) {
-            summaryRow(title: "Current balance", value: balance)
             summaryRow(title: "Total income", value: totalIncome)
             summaryRow(title: "Total expenses", value: totalExpenses)
-            summaryRow(title: "Net result", value: balance, emphasized: true)
+            summaryRow(title: "Net balance", value: balance, emphasized: true)
         }
         .padding(22)
         .background(
@@ -219,20 +217,12 @@ struct FinancialSummaryView: View {
             } else {
                 LazyVStack(spacing: 12) {
                     ForEach(displayedTransactions) { transaction in
-                        TransactionRowView(transaction: transaction, currencyStyle: currencyStyle)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onTapTransaction(transaction)
-                            }
-                    }
-                    .onDelete { indexSet in
-                        withAnimation {
-                            for index in indexSet {
-                                let transaction = displayedTransactions[index]
-                                modelContext.delete(transaction)
-                            }
-                            try? modelContext.save()
-                        }
+                        SwipeToDeleteRow(
+                            transaction: transaction,
+                            currencyStyle: currencyStyle,
+                            onTap: { onTapTransaction(transaction) },
+                            onDelete: { deleteAction(transaction) }
+                        )
                     }
                 }
             }

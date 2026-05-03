@@ -5,11 +5,13 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var themeManager: ThemeManager
     @Query(sort: [SortDescriptor(\Transaction.date, order: .reverse)]) private var transactions: [Transaction]
+    @Query private var budgetTargets: [BudgetTarget]
+    @Query private var savingsGoals: [SavingsGoal]
 
     @AppStorage(AppPreferences.themePreferenceKey) private var themePreferenceRaw = ThemeOption.light.rawValue
     @AppStorage(AppPreferences.currencyCodeKey) private var currencyCode = AppPreferences.defaultCurrencyCode
-    @AppStorage("rememberLastQuickAddCategory") private var rememberLastQuickAddCategory = false
-    @AppStorage("quickAddHapticsEnabled") private var quickAddHapticsEnabled = true
+    @AppStorage(AppPreferences.rememberLastQuickAddCategoryKey) private var rememberLastQuickAddCategory = false
+    @AppStorage(AppPreferences.quickAddHapticsEnabledKey) private var quickAddHapticsEnabled = true
 
     @State private var showingResetConfirmation = false
 
@@ -159,9 +161,9 @@ struct SettingsView: View {
 
     private func resetAllData() {
         withAnimation {
-            for transaction in transactions {
-                modelContext.delete(transaction)
-            }
+            for transaction in transactions { modelContext.delete(transaction) }
+            for target in budgetTargets { modelContext.delete(target) }
+            for goal in savingsGoals { modelContext.delete(goal) }
             do {
                 try modelContext.save()
             } catch {

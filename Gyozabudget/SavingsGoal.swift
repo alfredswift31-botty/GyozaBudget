@@ -35,8 +35,4 @@ final class SavingsGoal {
         let percent = Int(progress * 100)
         return "\(percent)%"
     }
-
-    var progressText: String {
-        "\(currentAmount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) of \(targetAmount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))"
-    }
 }

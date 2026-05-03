@@ -3,7 +3,6 @@ import SwiftData
 
 struct TransactionsView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.modelContext) private var modelContext
     let transactions: [Transaction]
     let currencyStyle: FloatingPointFormatStyle<Double>.Currency
     let onTapTransaction: (Transaction) -> Void
@@ -43,23 +42,15 @@ struct TransactionsView: View {
                                 .stroke(Color.appBorder(for: colorScheme), lineWidth: 1)
                         )
                 } else {
-                    VStack(spacing: 12) {
+                    LazyVStack(spacing: 12) {
                         ForEach(transactions) { transaction in
-                            TransactionRowView(transaction: transaction, currencyStyle: currencyStyle)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    onTapTransaction(transaction)
-                                }
+                            SwipeToDeleteRow(
+                                transaction: transaction,
+                                currencyStyle: currencyStyle,
+                                onTap: { onTapTransaction(transaction) },
+                                onDelete: { deleteAction(transaction) }
+                            )
                         }
-                    .onDelete { indexSet in
-                        withAnimation {
-                            for index in indexSet {
-                                let transaction = transactions[index]
-                                modelContext.delete(transaction)
-                            }
-                            try? modelContext.save()
-                        }
-                    }
                     }
                 }
             }

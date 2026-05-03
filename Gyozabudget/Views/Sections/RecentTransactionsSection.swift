@@ -67,32 +67,45 @@ struct RecentTransactionsSection: View {
     }
 }
 
-private struct SwipeToDeleteRow: View {
+struct SwipeToDeleteRow: View {
     let transaction: Transaction
     let currencyStyle: FloatingPointFormatStyle<Double>.Currency
     let onTap: () -> Void
     let onDelete: () -> Void
 
     @State private var offset: CGFloat = 0
+    @State private var rowWidth: CGFloat = 300
+
+    private let rowCornerRadius: CGFloat = 22
+    private let deleteRevealThreshold: CGFloat = 8
+
+    private var deleteBackgroundOpacity: Double {
+        guard offset < -deleteRevealThreshold else { return 0 }
+        return min(Double((abs(offset) - deleteRevealThreshold) / 72), 1)
+    }
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            // Background Delete Action
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.red)
-                .overlay(
-                    Image(systemName: "trash")
-                        .foregroundColor(.white)
-                        .font(.title3.weight(.semibold))
-                        .padding(.trailing, 24),
-                    alignment: .trailing
-                )
+        let rowShape = RoundedRectangle(cornerRadius: rowCornerRadius, style: .continuous)
 
-            // Foreground Row
+        ZStack(alignment: .trailing) {
+            if offset < -deleteRevealThreshold {
+                rowShape
+                    .fill(Color.red)
+                    .overlay(
+                        Image(systemName: "trash")
+                            .foregroundColor(.white)
+                            .font(.title3.weight(.semibold))
+                            .padding(.trailing, 24),
+                        alignment: .trailing
+                    )
+                    .opacity(deleteBackgroundOpacity)
+                    .clipShape(rowShape)
+            }
+
             TransactionRowView(transaction: transaction, currencyStyle: currencyStyle)
                 .contentShape(Rectangle())
+                .clipShape(rowShape)
                 .onTapGesture {
-                    // Dismiss swipe if tapped while open, otherwise trigger standard tap
                     if offset < 0 {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { offset = 0 }
                     } else {
@@ -103,7 +116,6 @@ private struct SwipeToDeleteRow: View {
                 .gesture(
                     DragGesture()
                         .onChanged { value in
-                            // Only allow swiping to the left
                             if value.translation.width < 0 {
                                 offset = value.translation.width
                             }
@@ -111,19 +123,22 @@ private struct SwipeToDeleteRow: View {
                         .onEnded { value in
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 if value.translation.width < -80 {
-                                    // Slide entirely off-screen
-                                    offset = -500
-                                    // Delete the item after the animation completes
+                                    offset = -(rowWidth + 20)
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                         onDelete()
                                     }
                                 } else {
-                                    // Snap back into place
                                     offset = 0
                                 }
                             }
                         }
                 )
         }
+        .clipShape(rowShape)
+        .background(
+            GeometryReader { geo in
+                Color.clear.onAppear { rowWidth = geo.size.width }
+            }
+        )
     }
 }

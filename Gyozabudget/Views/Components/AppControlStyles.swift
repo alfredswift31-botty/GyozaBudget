@@ -46,8 +46,8 @@ struct AppPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(theme.accent)
-            .foregroundColor(theme.premiumOnAccent)
+            .background(theme.primaryButtonFill)
+            .foregroundColor(theme.primaryButtonText)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .shadow(
                 color: Color.black.opacity(theme.option == .dark ? 0.22 : 0.08),

@@ -88,12 +88,13 @@ struct ContentView: View {
     private var quickAddCurrencySymbol: String {
         // Derive the symbol from the same FormatStyle used everywhere else so
         // the Quick Add hint can never disagree with the formatted amount.
+        // Use CharacterSet rather than a regex so all Unicode whitespace
+        // variants (NBSP, narrow NBSP, etc.) are stripped reliably.
         let sample = (0.0).formatted(currencyStyle)
-        let symbol = sample.replacingOccurrences(
-            of: "[0-9.,\\s\\u{00A0}\\u{202F}\\-]",
-            with: "",
-            options: .regularExpression
-        )
+        let removalSet = CharacterSet(charactersIn: "0123456789.,-")
+            .union(.whitespacesAndNewlines)
+        let scalars = sample.unicodeScalars.filter { !removalSet.contains($0) }
+        let symbol = String(String.UnicodeScalarView(scalars))
         return symbol.isEmpty ? currencyCode : symbol
     }
 

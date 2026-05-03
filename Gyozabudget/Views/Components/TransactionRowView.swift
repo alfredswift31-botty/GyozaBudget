@@ -15,7 +15,7 @@ struct TransactionRowView: View {
                 Text(transaction.category.displayName)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(theme.premiumCardTextPrimary)
-                Text(transaction.note ?? transaction.type.rawValue.capitalized)
+                Text(transaction.note ?? transaction.date.formatted(.dateTime.month(.abbreviated).day()))
                     .font(.caption)
                     .foregroundColor(theme.premiumCardTextSecondary)
             }

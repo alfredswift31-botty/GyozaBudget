@@ -198,11 +198,13 @@ struct MonthlyBudgetView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if hasTransactions {
-                Button("Set Budget", action: onEdit)
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .buttonStyle(AppPrimaryButtonStyle())
+                Button(action: onEdit) {
+                    Text("Set Budget")
+                        .font(.headline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(AppPrimaryButtonStyle())
             }
         }
         .padding(20)

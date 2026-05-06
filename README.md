@@ -1,6 +1,6 @@
 # Gyoza Budget
 
-Gyoza Budget is a SwiftUI personal finance app designed to make daily expense tracking, monthly budgeting, and savings goals feel simple, fast, and visually polished.
+Gyoza Budget is a SwiftUI budgeting app for iOS. It tracks income and expenses by category, measures spending against monthly targets, and manages savings goals with a progress bar and completion state.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/80440c4e-981c-4193-9100-b46506158c95" width="300"/>
@@ -8,121 +8,59 @@ Gyoza Budget is a SwiftUI personal finance app designed to make daily expense tr
   <img src="https://github.com/user-attachments/assets/dca02b6a-6b59-42b5-89fb-6f70e6abb3a9" width="300"/>
 </p>
 
+## Current release: v3.4
 
-## Version 3.0 Highlights
+## What it does
 
-Gyoza Budget v3.0 transforms the original SwiftData starter project into a full budgeting app with real product structure, onboarding, themes, and guided user flow.
+Transactions get recorded with an amount, type (income or expense), category, date, an optional note, and an optional receipt photo. The dashboard shows a balance summary and totals by category. Monthly budgets let you set a spending target per category and see how much is used. Savings goals work the same way — add money against a target until it is reached, at which point the goal marks itself complete.
 
-## Version 3.1 Update
+Quick Add is a fast entry sheet for expenses. It opens from the dashboard or from a Shortcut, using App Intents. New users go through a two-step onboarding that sets currency first, then walks through adding a transaction, creating a budget, and setting a savings goal — in that order.
 
-- App compatibility is now explicitly limited to iPhone and iPad builds, removing accidental macOS and visionOS target support.
+The app has three themes: Light, Dark, and Zen. Theme and currency are stored in `AppStorage` and apply across the whole app.
 
-## Version 3.4 Update
+## What changed in v3.4
 
-- Reset All Data now clears transactions, budgets, and savings goals.
-- Swipe-to-delete is now reused consistently across transaction lists.
-- Transaction rows now show a date fallback instead of redundant type text.
-- Savings goal Add Money validation is safer.
-- Zen/theme primary button contrast improved.
-- Removed dead code and cleaned shared components.
+- Reset All Data now clears transactions, budgets, and savings goals together
+- Swipe-to-delete is consistent across all transaction lists
+- Transaction rows show a date instead of repeating the type label
+- Savings goal Add Money validates the input before submitting
+- Primary button contrast improved in Zen and dark mode
+- Dead code removed, shared components consolidated
 
-Minor fixes:
-- Fixed Quick Add currency symbol rendering issue
-- Fixed Set Budget button layout inconsistency
+Minor fixes: Quick Add currency symbol rendering, Set Budget button layout.
 
-## Version 3.3 Update
+## v3.3
 
-- Fixed current-month budget totals so future-dated transactions are excluded.
-- Stabilized budget row identity for smoother progress animations.
-- Improved transaction edit amount formatting to avoid floating-point display artifacts.
-- Fixed repeated Quick Add deep-link triggering so the sheet reopens reliably.
-- Aligned the Quick Add currency symbol with the selected currency formatting.
+- Current-month budget totals now exclude future-dated transactions
+- Budget row identity stabilised so progress animations do not jump
+- Transaction edit amount no longer shows floating-point artifacts
+- Quick Add deep-link fixed so the sheet reopens reliably on repeated taps
+- Quick Add currency symbol matches the selected currency format
 
-## Version 3.2 Update
+## v3.2
 
-- Improved dashboard and onboarding motion with smoother spring-based transitions.
-- Refined Quick Add so expense entry remains comfortable when the keyboard is open or content needs to scroll.
-- Added clearer transaction deletion confirmation from the edit flow.
-- Improved transaction deletion behavior across dashboard, transaction, and financial summary views.
-- Moved receipt image processing off the main UI path for a more responsive attachment flow.
+- Spring-based transitions on the dashboard and onboarding screens
+- Quick Add stays usable when the keyboard is open or content needs to scroll
+- Transaction deletion asks for confirmation from the edit view
+- Receipt image processing moved off the main thread
 
-## Version 3.0 Update
+## v3.1
 
-Version 3.0 is focused on turning Gyoza Budget into a more complete, polished, and practical budgeting companion. This update brings the app closer to a real daily finance tool with clearer setup, faster expense entry, better visual organization, and more ways to personalize the experience.
+- App build targets restricted to iPhone and iPad, removing accidental macOS and visionOS support
 
-### Update Summary
+## v3.0
 
-- Expanded the app from basic data storage into a full personal finance workflow.
-- Added structured transaction tracking for income, expenses, categories, dates, notes, and receipt images.
-- Introduced monthly category budgets so users can compare spending against planned targets.
-- Added savings goals with progress tracking and completion state.
-- Added onboarding and guided setup so first-time users know what to do next.
-- Added Quick Add support for faster expense entry.
-- Added App Intent support for opening Quick Add through shortcuts or deep links.
-- Added Light, Dark, and Zen themes with shared app preferences.
-- Improved dashboard hierarchy, summary cards, spacing, and theme-aware styling.
-- Added settings for currency, theme, Quick Add preferences, onboarding reset, and data reset.
-- Updated the project release version to `3.0` with build number `3`.
+Rebuilt from a SwiftData starter template into a working budgeting app. Added the full transaction model, monthly budgets, savings goals, onboarding, Quick Add with App Intents, three themes, currency settings, and the financial summary views.
 
-### What’s New in v3.0
-
-- Built a full transaction tracking system with income, expense, categories, notes, dates, and receipt image support.
-- Added monthly budget targets by category.
-- Added savings goals with progress tracking and completion logic.
-- Introduced a two-step onboarding flow with currency setup.
-- Added a guided setup journey from first transaction → budget setup → savings goal.
-- Added Light, Dark, and Zen theme modes.
-- Added shared app preferences for theme, currency, onboarding, and quick-add behavior.
-- Added Quick Add expense flow for faster transaction entry.
-- Added App Intent support for opening Quick Add through shortcuts/deep links.
-- Added financial summary views for balance, income, and expenses.
-- Added settings for theme, currency, quick-add preferences, and data reset.
-- Improved dashboard hierarchy, card design, spacing, and theme-aware UI polish.
-- Optimised Dark and Zen mode card rendering for smoother scrolling.
-
-## Core Features
-
-### Expense & Income Tracking
-Track transactions with amount, type, category, date, note, and optional receipt image.
-
-### Monthly Budgeting
-Set monthly category targets and monitor spending progress.
-
-### Savings Goals
-Create savings goals, track progress, and manage goal completion.
-
-### Quick Add
-Add expenses quickly through a streamlined entry flow.
-
-### Guided Setup
-New users are guided through the first important actions:
-1. Add first transaction
-2. Set first budget
-3. Create first savings goal
-
-### Theme System
-Includes three visual modes:
-- Light Mode
-- Dark Mode
-- Zen Mode
-
-### Financial Summary
-View income, expenses, and balance summaries with transaction breakdowns.
-
-## Tech Stack
+## Tech
 
 - SwiftUI
 - SwiftData
 - AppStorage
 - App Intents
 - PhotosPicker
-- Custom theme system
-- iOS app architecture
+- iOS
 
-## Project Status
+## Related
 
-Version 3.0 is a major feature and UI upgrade focused on turning the app from a template into a usable personal budgeting product.
-
-## Version
-
-Current release: `v3.4`
+[Gyoza Island](https://github.com/alfredswift31-botty/GyozaIsland) is a macOS notch panel app built alongside this one.

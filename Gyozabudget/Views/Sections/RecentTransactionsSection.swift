@@ -75,6 +75,16 @@ struct SwipeToDeleteRow: View {
 
     @State private var offset: CGFloat = 0
     @State private var rowWidth: CGFloat = 300
+    /// Direction lock for the in-row drag. The gesture defers deciding
+    /// whether it owns the touch until it sees enough motion; if the user
+    /// is dragging vertically (i.e. trying to scroll the parent ScrollView),
+    /// we lock to .vertical and ignore the rest of the drag so the scroll
+    /// view can take over cleanly.
+    @State private var dragLock: DragLock = .undecided
+
+    private enum DragLock {
+        case undecided, horizontal, vertical
+    }
 
     private let rowCornerRadius: CGFloat = 22
     private let deleteRevealThreshold: CGFloat = 8
@@ -113,14 +123,30 @@ struct SwipeToDeleteRow: View {
                     }
                 }
                 .offset(x: offset)
-                .gesture(
-                    DragGesture()
+                // simultaneousGesture lets the parent ScrollView keep seeing
+                // the drag in parallel, so a vertical scroll attempt that
+                // started on top of a row is never stolen by this gesture.
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 12)
                         .onChanged { value in
+                            // First meaningful motion decides direction.
+                            if dragLock == .undecided {
+                                let dx = abs(value.translation.width)
+                                let dy = abs(value.translation.height)
+                                if dy > dx {
+                                    dragLock = .vertical
+                                } else if dx >= 6 {
+                                    dragLock = .horizontal
+                                }
+                            }
+                            guard dragLock == .horizontal else { return }
                             if value.translation.width < 0 {
                                 offset = value.translation.width
                             }
                         }
                         .onEnded { value in
+                            defer { dragLock = .undecided }
+                            guard dragLock == .horizontal else { return }
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 if value.translation.width < -80 {
                                     offset = -(rowWidth + 20)

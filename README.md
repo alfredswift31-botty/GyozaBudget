@@ -8,7 +8,7 @@ Gyoza Budget is a SwiftUI budgeting app for iOS. It tracks income and expenses b
   <img src="https://github.com/user-attachments/assets/dca02b6a-6b59-42b5-89fb-6f70e6abb3a9" width="300"/>
 </p>
 
-## Current release: v3.4
+## Current release: v3.5
 
 ## What it does
 
@@ -18,7 +18,11 @@ Quick Add is a fast entry sheet for expenses. It opens from the dashboard or fro
 
 The app has three themes: Light, Dark, and Zen. Theme and currency are stored in `AppStorage` and apply across the whole app.
 
-## What changed in v3.4
+## What changed in v3.5
+
+- Recent Transactions list scrolls smoothly when a finger starts on a transaction row — the swipe-to-delete gesture no longer blocks vertical scroll
+
+## v3.4
 
 - Reset All Data now clears transactions, budgets, and savings goals together
 - Swipe-to-delete is consistent across all transaction lists

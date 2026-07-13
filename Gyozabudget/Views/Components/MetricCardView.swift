@@ -20,6 +20,7 @@ struct MetricCardView: View {
                 .tracking(0.35)
             Text(value, format: currencyStyle)
                 .font(.title3.weight(.bold))
+                .monospacedDigit()
                 .foregroundColor(theme.premiumCardTextPrimary)
         }
         .padding(18)

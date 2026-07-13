@@ -26,7 +26,14 @@ struct GyozabudgetApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            // ponytail: in-memory fallback keeps app usable; add user-facing recovery UI if this ever fires
+            print("Could not create persistent ModelContainer, falling back to in-memory: \(error)")
+            let fallback = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            do {
+                return try ModelContainer(for: schema, configurations: [fallback])
+            } catch {
+                fatalError("Could not create in-memory ModelContainer: \(error)")
+            }
         }
     }()
 

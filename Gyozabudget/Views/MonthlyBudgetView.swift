@@ -6,7 +6,6 @@ struct MonthlyBudgetView: View {
     let hasTransactions: Bool
     let currencyStyle: FloatingPointFormatStyle<Double>.Currency
     let onEdit: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
 
     private var theme: AppTheme {
         themeManager.currentTheme
@@ -48,7 +47,7 @@ struct MonthlyBudgetView: View {
             }
             .padding()
         }
-        .background(Color.appBackground(for: colorScheme).ignoresSafeArea())
+        .background(theme.background.ignoresSafeArea())
         .toolbar {
 #if os(iOS)
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -80,14 +79,25 @@ struct MonthlyBudgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var summaryTitle: LocalizedStringKey {
+        if overBudgetCount > 0 {
+            return "Over budget in ^[\(overBudgetCount) categories](inflect: true)"
+        }
+        if nearBudgetCount > 0 {
+            return "Near limit in ^[\(nearBudgetCount) categories](inflect: true)"
+        }
+        return categoriesWithTargets.isEmpty ? "No monthly budgets yet" : "Budget on track"
+    }
+
     private var summaryView: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(overBudgetCount > 0 ? "Over budget in \(overBudgetCount) categories" : nearBudgetCount > 0 ? "Near limit in \(nearBudgetCount) categories" : categoriesWithTargets.isEmpty ? "No monthly budgets yet" : "Budget on track")
+                Text(summaryTitle)
                     .font(.headline.weight(.semibold))
                     .foregroundColor(theme.textPrimary)
                 Text("\(totalActual, format: currencyStyle) spent of \(totalTarget, format: currencyStyle)")
                     .font(.subheadline)
+                    .monospacedDigit()
                     .foregroundColor(theme.textSecondary)
             }
             Spacer()
@@ -102,7 +112,7 @@ struct MonthlyBudgetView: View {
                 )
         }
         .padding(20)
-        .appPanelCard(cornerRadius: 24, emphasized: true)
+        .appPanelCard(cornerRadius: 16, emphasized: true)
     }
 
     private func budgetRow(_ item: BudgetSection.BudgetData) -> some View {
@@ -124,6 +134,7 @@ struct MonthlyBudgetView: View {
                         .foregroundColor(theme.textSecondary)
                     Text(item.target > 0 ? item.target.formatted(currencyStyle) : "–")
                         .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
                         .foregroundColor(theme.textPrimary)
                 }
 
@@ -135,6 +146,7 @@ struct MonthlyBudgetView: View {
                         .foregroundColor(theme.textSecondary)
                     Text(item.actual.formatted(currencyStyle))
                         .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
                         .foregroundColor(theme.textPrimary)
                 }
             }
@@ -147,16 +159,19 @@ struct MonthlyBudgetView: View {
                 let progress = item.target > 0 ? min(item.actual / item.target, 1) : 0
                 ZStack(alignment: .leading) {
                     Capsule()
-                                .fill(Color.appProgressBackground(for: colorScheme))
+                        .fill(theme.progressBackground)
                     Capsule()
-                        .fill(Color.appProgressFill(for: colorScheme, isPrimary: item.target > 0))
-                        .frame(width: max(geo.size.width * progress, item.target > 0 ? 8 : 0), height: 8)
+                        .fill(theme.accent)
+                        .frame(width: progress > 0 ? max(geo.size.width * progress, 8) : 0, height: 8)
                 }
             }
             .frame(height: 10)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(item.category.displayName) budget used")
+            .accessibilityValue("\(Int((item.target > 0 ? min(item.actual / item.target, 1) : 0) * 100)) percent")
         }
         .padding(18)
-        .appPanelCard(cornerRadius: 24)
+        .appPanelCard(cornerRadius: 16)
     }
 
     private func statusLabel(for item: BudgetSection.BudgetData) -> String {
@@ -180,34 +195,27 @@ struct MonthlyBudgetView: View {
     }
 
     private func statusColor(for item: BudgetSection.BudgetData) -> Color {
-        guard item.target > 0 else { return colorScheme == .dark ? Color.white.opacity(0.55) : Color.black.opacity(0.3) }
+        guard item.target > 0 else { return theme.textSecondary }
         if item.actual > item.target {
-            return colorScheme == .dark ? Color.white.opacity(0.9) : Color.black.opacity(0.8)
+            return .red
         }
         if item.actual > item.target * 0.9 {
-            return colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.65)
+            return .orange
         }
-        return colorScheme == .dark ? Color.white.opacity(0.6) : Color.black.opacity(0.45)
+        return theme.textSecondary
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        ContentUnavailableView {
+            Label("No budgets yet", systemImage: "chart.bar.doc.horizontal")
+        } description: {
             Text(hasTransactions ? "Set your first budget to guide your spending." : "Add a transaction first, then set your budget.")
-                .font(.subheadline)
-                .foregroundColor(theme.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
+        } actions: {
             if hasTransactions {
-                Button(action: onEdit) {
-                    Text("Set Budget")
-                        .font(.headline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(AppPrimaryButtonStyle())
+                Button("Set Budget", action: onEdit)
+                    .buttonStyle(.borderedProminent)
+                    .tint(theme.accent)
             }
         }
-        .padding(20)
-        .appPanelCard(cornerRadius: 24)
     }
 }

@@ -73,13 +73,17 @@ enum FinancialSummaryMode: String, Hashable {
 }
 
 struct FinancialSummaryView: View {
-    @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var themeManager: ThemeManager
 
     let mode: FinancialSummaryMode
     let transactions: [Transaction]
     let currencyStyle: FloatingPointFormatStyle<Double>.Currency
     let onTapTransaction: (Transaction) -> Void
     let deleteAction: (Transaction) -> Void
+
+    private var theme: AppTheme {
+        themeManager.currentTheme
+    }
 
     private var totalIncome: Double {
         transactions.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
@@ -128,7 +132,7 @@ struct FinancialSummaryView: View {
             }
             .padding()
         }
-        .background(Color.appBackground(for: colorScheme).ignoresSafeArea())
+        .background(theme.background.ignoresSafeArea())
         .navigationTitle(mode.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -137,44 +141,37 @@ struct FinancialSummaryView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(mode.headline)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(Color.appSecondaryText(for: colorScheme))
+                .foregroundColor(theme.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.35)
 
             Text(heroValue, format: currencyStyle)
-                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .monospacedDigit()
                 .foregroundColor(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
             Text(mode.subtitle)
                 .font(.subheadline)
-                .foregroundColor(Color.appSecondaryText(for: colorScheme))
+                .foregroundColor(theme.textSecondary)
 
             HStack {
                 Text(mode.heroLabel)
                     .font(.footnote)
-                    .foregroundColor(Color.appSecondaryText(for: colorScheme))
+                    .foregroundColor(theme.textSecondary)
                 Spacer()
                 Text("\(displayedTransactions.count)")
                     .font(.footnote.weight(.semibold))
                     .foregroundColor(.primary)
                 Text(mode == .balance ? "recent" : "transactions")
                     .font(.footnote)
-                    .foregroundColor(Color.appSecondaryText(for: colorScheme))
+                    .foregroundColor(theme.textSecondary)
             }
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.appSurface(for: colorScheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.appBorder(for: colorScheme), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.04), radius: 16, x: 0, y: 8)
+        .appPanelCard(cornerRadius: 16, emphasized: true)
     }
 
     private var balanceBreakdownCard: some View {
@@ -184,14 +181,7 @@ struct FinancialSummaryView: View {
             summaryRow(title: "Net balance", value: balance, emphasized: true)
         }
         .padding(22)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.appSurface(for: colorScheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.appBorder(for: colorScheme), lineWidth: 1)
-        )
+        .appPanelCard(cornerRadius: 16)
     }
 
     private var transactionsSection: some View {
@@ -201,19 +191,11 @@ struct FinancialSummaryView: View {
                 .foregroundColor(.primary)
 
             if displayedTransactions.isEmpty {
-                Text(mode.emptyStateText)
-                    .font(.subheadline)
-                    .foregroundColor(Color.appSecondaryText(for: colorScheme))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(Color.appSurface(for: colorScheme))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.appBorder(for: colorScheme), lineWidth: 1)
-                    )
+                ContentUnavailableView(
+                    "No Transactions",
+                    systemImage: "list.bullet.rectangle",
+                    description: Text(mode.emptyStateText)
+                )
             } else {
                 LazyVStack(spacing: 12) {
                     ForEach(displayedTransactions) { transaction in
@@ -234,10 +216,11 @@ struct FinancialSummaryView: View {
         HStack {
             Text(title)
                 .font(.footnote.weight(emphasized ? .semibold : .regular))
-                .foregroundColor(emphasized ? .primary : Color.appSecondaryText(for: colorScheme))
+                .foregroundColor(emphasized ? .primary : theme.textSecondary)
             Spacer()
             Text(value, format: currencyStyle)
                 .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
                 .foregroundColor(.primary)
         }
     }

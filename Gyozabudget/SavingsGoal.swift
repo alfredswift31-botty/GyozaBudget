@@ -7,7 +7,7 @@ final class SavingsGoal {
     var name: String
     var targetAmount: Double
     var currentAmount: Double
-    var createdDate: Date?
+    var createdDate: Date
     var isCompleted: Bool
 
     init(
@@ -15,7 +15,7 @@ final class SavingsGoal {
         name: String,
         targetAmount: Double,
         currentAmount: Double = 0,
-        createdDate: Date? = Date(),
+        createdDate: Date = Date(),
         isCompleted: Bool = false
     ) {
         self.id = id

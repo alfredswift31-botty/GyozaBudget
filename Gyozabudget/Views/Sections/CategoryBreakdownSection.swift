@@ -67,6 +67,6 @@ struct CategoryBreakdownSection: View {
             }
         }
         .padding(18)
-        .premiumCard(cornerRadius: 24, glowEnabled: false)
+        .premiumCard(cornerRadius: 16)
     }
 }

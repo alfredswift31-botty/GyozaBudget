@@ -54,8 +54,6 @@ struct AppTheme {
     let colorScheme: ColorScheme
 
     var card: Color { cardBackground }
-    var primaryText: Color { textPrimary }
-    var secondaryText: Color { textSecondary }
 
     static let light = AppTheme(
         option: .light,
@@ -107,16 +105,8 @@ struct AppTheme {
         textPrimary.opacity(colorScheme == .dark ? 0.10 : 0.08)
     }
 
-    var accentSurface: Color {
-        subtleAccent
-    }
-
     var progressBackground: Color {
         option == .dark ? subtleAccent.opacity(0.92) : subtleAccent
-    }
-
-    var shadowColor: Color {
-        Color.black.opacity(colorScheme == .dark ? 0.24 : 0.08)
     }
 
     var premiumCardTop: Color {
@@ -127,50 +117,6 @@ struct AppTheme {
             return Color(hex: "#24272D")
         case .zen:
             return Color(hex: "#31463A")
-        }
-    }
-
-    var premiumCardBottom: Color {
-        switch option {
-        case .light:
-            return Color(hex: "#F2F2EE")
-        case .dark:
-            return Color(hex: "#16181C")
-        case .zen:
-            return Color(hex: "#202D25")
-        }
-    }
-
-    var premiumCardGlow: Color {
-        switch option {
-        case .light:
-            return Color.white.opacity(0.4)
-        case .dark:
-            return Color.white.opacity(0.08)
-        case .zen:
-            return accent.opacity(0.16)
-        }
-    }
-
-    var premiumCardBorderHighlight: Color {
-        switch option {
-        case .light:
-            return Color.white.opacity(0.88)
-        case .dark:
-            return Color.white.opacity(0.10)
-        case .zen:
-            return Color.white.opacity(0.12)
-        }
-    }
-
-    var premiumCardBorderLowlight: Color {
-        switch option {
-        case .light:
-            return Color.black.opacity(0.06)
-        case .dark:
-            return Color.black.opacity(0.26)
-        case .zen:
-            return secondary.opacity(0.22)
         }
     }
 
@@ -196,10 +142,6 @@ struct AppTheme {
         }
     }
 
-    var premiumOnAccent: Color {
-        option == .light ? Color.white : Color(hex: "#F6F7F4")
-    }
-
     var primaryButtonFill: Color {
         switch option {
         case .light, .dark:
@@ -218,48 +160,13 @@ struct AppTheme {
         }
     }
 
-    func premiumCardFillGradient(emphasis: Bool) -> LinearGradient {
-        switch option {
-        case .light:
-            return LinearGradient(
-                colors: [
-                    cardBackground,
-                    surface.opacity(emphasis ? 0.5 : 0.42)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        case .dark:
-            return LinearGradient(
-                colors: [
-                    premiumCardTop.opacity(emphasis ? 0.98 : 0.95),
-                    premiumCardBottom
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case .zen:
-            return LinearGradient(
-                colors: [
-                    premiumCardTop.opacity(emphasis ? 0.90 : 0.82),
-                    premiumCardBottom
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+    /// Fixed red for swipe-delete and other destructive actions.
+    /// Must NOT use `accent` — dark theme accent is near-white, which made
+    /// swipe Delete chips look like blank white blocks.
+    var destructive: Color {
+        Color(red: 0.90, green: 0.24, blue: 0.26)
     }
 
-    func premiumCardBorderGradient(emphasis: Bool) -> LinearGradient {
-        LinearGradient(
-            colors: [
-                premiumCardBorderHighlight.opacity(emphasis ? 0.85 : 0.68),
-                premiumCardBorderLowlight.opacity(emphasis ? 0.82 : 0.62)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
 }
 
 final class ThemeManager: ObservableObject {

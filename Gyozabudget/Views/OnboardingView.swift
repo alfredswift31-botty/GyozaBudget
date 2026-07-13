@@ -76,7 +76,7 @@ struct OnboardingView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Welcome to Gyoza Budget")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundColor(theme.textPrimary)
 
                 Text("Track spending, set budgets, and stay in control without getting buried in setup.")
@@ -96,7 +96,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Confirm your setup")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundColor(theme.textPrimary)
 
                 Text("Pick the currency you want to see across balances, budgets, and savings.")

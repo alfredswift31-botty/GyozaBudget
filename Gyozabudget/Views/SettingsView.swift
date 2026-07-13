@@ -14,149 +14,71 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.quickAddHapticsEnabledKey) private var quickAddHapticsEnabled = true
 
     @State private var showingResetConfirmation = false
+    @State private var resetErrorMessage: String?
 
     private var theme: AppTheme {
         themeManager.currentTheme
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                header
-
-                sectionCard(title: "Appearance") {
-                    Picker("Theme", selection: $themePreferenceRaw) {
-                        ForEach(ThemeOption.allCases) { option in
-                            Text(option.title).tag(option.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .tint(theme.accent)
-                }
-
-                sectionCard(title: "Preferences") {
-                    VStack(spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Currency")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(theme.textPrimary)
-                                Text("Select the display currency for amounts.")
-                                    .font(.caption)
-                                    .foregroundColor(theme.textSecondary)
-                            }
-                            Spacer()
-                            Menu {
-                            ForEach(AppPreferences.supportedCurrencyCodes, id: \.self) { code in
-                                Button(code) {
-                                    currencyCode = code
-                                }
-                            }
-                        } label: {
-                                Text(currencyCode)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(theme.textPrimary)
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, 14)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .fill(theme.cardBackground)
-                                    )
-                            }
-                        }
-
-                        settingToggle(
-                            title: "Remember last Quick Add category",
-                            isOn: $rememberLastQuickAddCategory
-                        )
-
-                        settingToggle(
-                            title: "Haptic feedback for Quick Add",
-                            isOn: $quickAddHapticsEnabled
-                        )
+        Form {
+            Section("Appearance") {
+                Picker("Theme", selection: $themePreferenceRaw) {
+                    ForEach(ThemeOption.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
                     }
                 }
-
-                sectionCard(title: "Data") {
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            showingResetConfirmation = true
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Reset All Data")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundColor(theme.textPrimary)
-                                    Text("Delete every transaction from the app.")
-                                        .font(.caption)
-                                        .foregroundColor(theme.textSecondary)
-                                }
-                                Spacer()
-                                Image(systemName: "trash")
-                                    .foregroundColor(theme.textPrimary)
-                            }
-                            .padding(16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(theme.cardBackground)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                .pickerStyle(.segmented)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .listRowBackground(theme.cardBackground)
+
+            Section {
+                Picker("Currency", selection: $currencyCode) {
+                    ForEach(AppPreferences.supportedCurrencyCodes, id: \.self) { code in
+                        Text(code).tag(code)
+                    }
+                }
+                Toggle("Remember last Quick Add category", isOn: $rememberLastQuickAddCategory)
+                Toggle("Haptic feedback for Quick Add", isOn: $quickAddHapticsEnabled)
+            } header: {
+                Text("Preferences")
+            } footer: {
+                Text("The selected currency is used for all amounts across the app.")
+            }
+            .listRowBackground(theme.cardBackground)
+
+            Section {
+                Button("Reset All Data", role: .destructive) {
+                    showingResetConfirmation = true
+                }
+            } header: {
+                Text("Data")
+            } footer: {
+                Text("Delete all transactions, budgets, and savings goals.")
+            }
+            .listRowBackground(theme.cardBackground)
         }
+        .scrollContentBackground(.hidden)
         .background(theme.background.ignoresSafeArea())
+        .tint(theme.accent)
+        .navigationTitle("Settings")
         .confirmationDialog("Reset all data?", isPresented: $showingResetConfirmation, titleVisibility: .visible) {
-            Button("Delete All Transactions", role: .destructive) {
+            Button("Delete All Data", role: .destructive) {
                 resetAllData()
             }
             Button("Cancel", role: .cancel) {}
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Settings")
-                .font(.largeTitle.weight(.bold))
-                .foregroundColor(theme.textPrimary)
-            Text("Control app preferences, appearance, and data management.")
-                .font(.subheadline)
-                .foregroundColor(theme.textSecondary)
+        .alert(
+            "Couldn't Reset Data",
+            isPresented: Binding(
+                get: { resetErrorMessage != nil },
+                set: { if !$0 { resetErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(resetErrorMessage ?? "")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func sectionCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(theme.textPrimary)
-            content()
-        }
-        .padding(20)
-        .appPanelCard(cornerRadius: 26, emphasized: true)
-    }
-
-    private func settingToggle(title: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(theme.textPrimary)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(theme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(theme.border.opacity(0.7), lineWidth: 1)
-        )
-        .toggleStyle(AppSwitchToggleStyle())
     }
 
     private func resetAllData() {
@@ -167,7 +89,7 @@ struct SettingsView: View {
             do {
                 try modelContext.save()
             } catch {
-                print("Failed to reset data: \(error)")
+                resetErrorMessage = error.localizedDescription
             }
         }
     }

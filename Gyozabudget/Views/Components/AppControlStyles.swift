@@ -60,71 +60,31 @@ struct AppPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-struct AppSwitchToggleStyle: ToggleStyle {
-    @EnvironmentObject private var themeManager: ThemeManager
-
-    private var theme: AppTheme {
-        themeManager.currentTheme
-    }
-
-    func makeBody(configuration: Configuration) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                configuration.isOn.toggle()
-            }
-        } label: {
-            HStack(spacing: 14) {
-                configuration.label
-                Spacer(minLength: 12)
-                toggleTrack(isOn: configuration.isOn)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func toggleTrack(isOn: Bool) -> some View {
-        let thumbColor: Color = {
-            if isOn && theme.option == .dark {
-                return theme.background
-            }
-            return Color.white
-        }()
-
-        let trackColor: Color = {
-            if isOn {
-                return theme.accent
-            }
-            return theme.option == .dark ? Color(hex: "#3A3F47") : theme.subtleAccent
-        }()
-
-        let borderColor: Color = {
-            if isOn {
-                return theme.option == .dark ? Color.white.opacity(0.16) : theme.accent.opacity(0.18)
-            }
-            return theme.option == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.06)
-        }()
-
-        return ZStack(alignment: isOn ? .trailing : .leading) {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .fill(trackColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .stroke(borderColor, lineWidth: 1)
-                )
-
-            Circle()
-                .fill(thumbColor)
-                .frame(width: 24, height: 24)
-                .shadow(color: Color.black.opacity(theme.option == .dark ? 0.30 : 0.14), radius: 4, x: 0, y: 2)
-                .padding(4)
-        }
-        .frame(width: 52, height: 34)
-    }
-}
-
 extension View {
     func appPanelCard(cornerRadius: CGFloat = 24, emphasized: Bool = false) -> some View {
         modifier(AppPanelCardModifier(cornerRadius: cornerRadius, emphasized: emphasized))
+    }
+
+    /// Trailing swipe Delete that stays readable in every theme.
+    /// App-wide `.tint(theme.accent)` is near-white in dark mode and was
+    /// painting the default swipe chip as a blank white block. This forces
+    /// a red plate + clear X icon so the action is obvious.
+    func transactionDeleteSwipe(
+        tint: Color = Color(red: 0.90, green: 0.24, blue: 0.26),
+        action: @escaping () -> Void
+    ) -> some View {
+        swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive, action: action) {
+                Label {
+                    Text("Delete")
+                } icon: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .bold))
+                        .symbolRenderingMode(.monochrome)
+                }
+            }
+            .tint(tint)
+            .accessibilityLabel("Delete transaction")
+        }
     }
 }

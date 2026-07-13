@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BalanceCardView: View {
     @EnvironmentObject private var themeManager: ThemeManager
+    @ScaledMetric(relativeTo: .largeTitle) private var balanceFontSize: CGFloat = 56
     let balance: Double
     let currencyStyle: FloatingPointFormatStyle<Double>.Currency
 
@@ -18,9 +19,11 @@ struct BalanceCardView: View {
                 .tracking(0.35)
 
             Text(balance, format: currencyStyle)
-                .font(.system(size: 56, weight: .bold, design: .rounded))
+                .font(.system(size: balanceFontSize, weight: .bold, design: .rounded))
+                .monospacedDigit()
                 .foregroundColor(theme.premiumCardTextPrimary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.5)
         }
         .padding(28)
         .frame(maxWidth: .infinity, alignment: .leading)

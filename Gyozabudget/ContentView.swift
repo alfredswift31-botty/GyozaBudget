@@ -5,6 +5,7 @@
 //  Created by Aung Hpone Moe on 10/04/2026.
 //
 
+import Combine
 import SwiftUI
 import SwiftData
 import PhotosUI
@@ -53,28 +54,18 @@ struct ContentView: View {
     @State private var showingReceiptPreview = false
     @State private var quickNote = ""
     @State private var showingDeleteConfirmation = false
-    @State private var showsCompactTitle = false
     @State private var feedbackMessage: String?
     @State private var feedbackDismissWorkItem: DispatchWorkItem?
+    @State private var monthAnchor = Date()
+    @FocusState private var transactionAmountFocused: Bool
+    @FocusState private var focusedBudgetCategory: Category?
 
     private var theme: AppTheme {
         themeManager.currentTheme
     }
 
-    init(showingQuickAddExpense: Binding<Bool> = .constant(false)) {
+    init(showingQuickAddExpense: Binding<Bool>) {
         self._showingQuickAddExpense = showingQuickAddExpense
-    }
-
-    private var totalIncome: Double {
-        transactions.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
-    }
-
-    private var totalExpenses: Double {
-        transactions.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
-    }
-
-    private var balance: Double {
-        totalIncome - totalExpenses
     }
 
     private var recentTransactions: [Transaction] {
@@ -86,86 +77,75 @@ struct ContentView: View {
     }
 
     private var quickAddCurrencySymbol: String {
-        // Derive the symbol from the same FormatStyle used everywhere else so
-        // the Quick Add hint can never disagree with the formatted amount.
-        // Use CharacterSet rather than a regex so all Unicode whitespace
-        // variants (NBSP, narrow NBSP, etc.) are stripped reliably.
-        let sample = (0.0).formatted(currencyStyle)
-        let removalSet = CharacterSet(charactersIn: "0123456789.,-")
-            .union(.whitespacesAndNewlines)
-        let scalars = sample.unicodeScalars.filter { !removalSet.contains($0) }
-        let symbol = String(String.UnicodeScalarView(scalars))
-        return symbol.isEmpty ? currencyCode : symbol
+        AppPreferences.currencySymbol(for: currencyCode)
     }
 
-    private var expenseCategoryTotals: [(category: Category, amount: Double)] {
-        let expenses = transactions.filter { $0.type == .expense }
-        let grouped = Dictionary(grouping: expenses, by: \.category)
-        return grouped
-            .map { (category: $0.key, amount: $0.value.reduce(0) { $0 + $1.amount }) }
+    private struct DashboardStats {
+        var totalIncome: Double = 0
+        var totalExpenses: Double = 0
+        var expenseCategoryTotals: [(category: Category, amount: Double)] = []
+        var currentMonthExpenseTotals: [Category: Double] = [:]
+        var balance: Double { totalIncome - totalExpenses }
+    }
+
+    // Single pass over all transactions; body reads this once per evaluation.
+    private var dashboardStats: DashboardStats {
+        let start = currentMonthStart
+        let end = nextMonthStart
+        var stats = DashboardStats()
+        var categoryTotals: [Category: Double] = [:]
+        for transaction in transactions {
+            switch transaction.type {
+            case .income:
+                stats.totalIncome += transaction.amount
+            case .expense:
+                stats.totalExpenses += transaction.amount
+                categoryTotals[transaction.category, default: 0] += transaction.amount
+                if transaction.date >= start && transaction.date < end {
+                    stats.currentMonthExpenseTotals[transaction.category, default: 0] += transaction.amount
+                }
+            }
+        }
+        stats.expenseCategoryTotals = categoryTotals
+            .map { (category: $0.key, amount: $0.value) }
             .sorted { $0.amount > $1.amount }
+        return stats
     }
 
+    // ponytail: month stored as local Date; store year+month ints if timezone-shift bugs get reported
     private var currentMonthStart: Date {
-        Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date())) ?? Date()
+        Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: monthAnchor)) ?? monthAnchor
     }
 
     private var nextMonthStart: Date {
         Calendar.current.date(byAdding: .month, value: 1, to: currentMonthStart) ?? currentMonthStart
     }
 
-    private var currentMonthExpenseTotals: [Category: Double] {
-        let start = currentMonthStart
-        let end = nextMonthStart
-        let expenses = transactions.filter {
-            $0.type == .expense && $0.date >= start && $0.date < end
-        }
-        return expenses.reduce(into: [:]) { partial, transaction in
-            partial[transaction.category, default: 0] += transaction.amount
-        }
-    }
-
     private var currentMonthBudgetTargets: [Category: BudgetTarget] {
+        // uniquingKeysWith: the store may hold duplicate targets for a
+        // category (e.g. written by an older app version); picking the first
+        // instead of trapping keeps launch from aborting on such data.
         Dictionary(
-            uniqueKeysWithValues:
-                budgetTargets
-                .filter { Calendar.current.isDate($0.month, equalTo: Date(), toGranularity: .month) }
-                .map { ($0.category, $0) }
+            budgetTargets
+                .filter { Calendar.current.isDate($0.month, equalTo: monthAnchor, toGranularity: .month) }
+                .map { ($0.category, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
     }
 
-    private var budgetItems: [BudgetSection.BudgetData] {
-        Category.budgetCategories.map { category in
+    private func budgetItems(monthTotals: [Category: Double]) -> [BudgetSection.BudgetData] {
+        let targets = currentMonthBudgetTargets
+        return Category.budgetCategories.map { category in
             BudgetSection.BudgetData(
                 category: category,
-                actual: currentMonthExpenseTotals[category, default: 0],
-                target: currentMonthBudgetTargets[category]?.amount ?? 0
+                actual: monthTotals[category, default: 0],
+                target: targets[category]?.amount ?? 0
             )
         }
     }
 
-    private var budgetCategoriesWithTargets: [BudgetSection.BudgetData] {
-        budgetItems.filter { $0.target > 0 }
-    }
-
     private var hasAnyBudgetTargets: Bool {
         !budgetTargets.isEmpty
-    }
-
-    private var totalBudgetTarget: Double {
-        budgetCategoriesWithTargets.map { $0.target }.reduce(0, +)
-    }
-
-    private var totalBudgetActual: Double {
-        budgetCategoriesWithTargets.map { $0.actual }.reduce(0, +)
-    }
-
-    private var overBudgetCategoryCount: Int {
-        budgetCategoriesWithTargets.filter { $0.actual > $0.target }.count
-    }
-
-    private var nearBudgetCategoryCount: Int {
-        budgetCategoriesWithTargets.filter { $0.actual > $0.target * 0.9 && $0.actual <= $0.target }.count
     }
 
     private var currentGuidedStep: GuidedStep {
@@ -184,7 +164,7 @@ struct ContentView: View {
         return .allSet
     }
 
-    private var budgetPreviewSummary: String {
+    private func budgetPreviewSummary(withTargets: [BudgetSection.BudgetData]) -> String {
         if currentGuidedStep == .firstTransaction {
             return "Add your first transaction to get started."
         }
@@ -193,22 +173,24 @@ struct ContentView: View {
             return "Next: set your first budget."
         }
 
-        if budgetCategoriesWithTargets.isEmpty {
+        if withTargets.isEmpty {
             return "Set this month's budget to stay on track."
         }
 
-        if overBudgetCategoryCount > 0 {
-            return "Over budget in \(overBudgetCategoryCount) categories."
+        let overCount = withTargets.filter { $0.actual > $0.target }.count
+        if overCount > 0 {
+            return "Over budget in \(overCount) categories."
         }
 
-        if nearBudgetCategoryCount > 0 {
-            return "Near the limit in \(nearBudgetCategoryCount) categories."
+        let nearCount = withTargets.filter { $0.actual > $0.target * 0.9 && $0.actual <= $0.target }.count
+        if nearCount > 0 {
+            return "Near the limit in \(nearCount) categories."
         }
 
-        return "On track across \(budgetCategoriesWithTargets.count) tracked categories."
+        return "On track across \(withTargets.count) tracked categories."
     }
 
-    private var budgetPreviewSubtitle: String {
+    private func budgetPreviewSubtitle(withTargets: [BudgetSection.BudgetData]) -> String {
         if currentGuidedStep == .firstTransaction {
             return "Start tracking"
         }
@@ -217,10 +199,12 @@ struct ContentView: View {
             return "Create a budget"
         }
 
-        if budgetCategoriesWithTargets.isEmpty {
+        if withTargets.isEmpty {
             return "Set this month"
         }
-        return "\(totalBudgetActual.formatted(currencyStyle)) of \(totalBudgetTarget.formatted(currencyStyle))"
+        let totalActual = withTargets.map { $0.actual }.reduce(0, +)
+        let totalTarget = withTargets.map { $0.target }.reduce(0, +)
+        return "\(totalActual.formatted(currencyStyle)) of \(totalTarget.formatted(currencyStyle))"
     }
 
     private var quickAddDescription: String {
@@ -301,32 +285,6 @@ struct ContentView: View {
         }
     }
 
-    private var primaryActionBadgeText: String {
-        switch currentGuidedStep {
-        case .firstTransaction:
-            return "Step 1 of 3"
-        case .budgetSetup:
-            return "Step 2 of 3"
-        case .savingsGoal:
-            return "Step 3 of 3"
-        case .allSet:
-            return "Complete"
-        }
-    }
-
-    private var primaryActionBadgeIcon: String {
-        switch currentGuidedStep {
-        case .firstTransaction:
-            return "bolt.fill"
-        case .budgetSetup:
-            return "chart.pie.fill"
-        case .savingsGoal:
-            return "flag.fill"
-        case .allSet:
-            return "checkmark.circle.fill"
-        }
-    }
-
     private var isBudgetSetupHighlighted: Bool {
         currentGuidedStep == .budgetSetup
     }
@@ -383,52 +341,54 @@ struct ContentView: View {
     }
 
     var body: some View {
+        let stats = dashboardStats
+        let budgetData = budgetItems(monthTotals: stats.currentMonthExpenseTotals)
+
         NavigationStack {
             ZStack(alignment: .top) {
                 ScrollView {
                     VStack(spacing: 20) {
-                        headerView
                         if currentGuidedStep != .allSet {
                             primaryActionCard
                         }
-                        summaryView
-                        monthlyBudgetPreviewCard
+                        summaryView(stats: stats)
+                        monthlyBudgetPreviewCard(items: budgetData)
                         savingsGoalsPreviewCard
                         quickAddExpenseView
-                        categoryBreakdownView
-                        categoryChartView
+                        CategoryBreakdownSection(
+                            totals: stats.expenseCategoryTotals,
+                            currencyStyle: currencyStyle
+                        )
+                        CategoryChartSection(
+                            totals: stats.expenseCategoryTotals,
+                            currencyStyle: currencyStyle
+                        )
                         recentTransactionsView
                     }
                     .padding(.horizontal)
                     .padding(.bottom)
                     .padding(.top, 8)
                 }
-                .coordinateSpace(name: "dashboardScroll")
                 .background(theme.background.ignoresSafeArea())
 
                 if let feedbackMessage {
                     feedbackBanner(message: feedbackMessage)
                         .padding(.horizontal)
-                        .padding(.top, showsCompactTitle ? 44 : 8)
+                        .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
-                        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: showsCompactTitle)
                 }
-
-                compactDashboardBar
-                    .zIndex(1)
             }
+            .navigationTitle("Gyoza Budget")
             .toolbar {
 #if os(iOS)
-                if !showsCompactTitle {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        dashboardTopActions
-                    }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    settingsToolbarButton
+                    addTransactionToolbarButton
                 }
 #else
-                if !showsCompactTitle {
-                    ToolbarItem {
-                        dashboardTopActions
-                    }
+                ToolbarItemGroup {
+                    settingsToolbarButton
+                    addTransactionToolbarButton
                 }
 #endif
             }
@@ -446,16 +406,20 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingQuickAddExpense) {
                 quickAddExpenseSheet
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingBudgetEditor) {
                 budgetEditorSheet
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .navigationDestination(isPresented: $showingSettings) {
                 SettingsView()
             }
             .navigationDestination(isPresented: $showingMonthlyBudget) {
                 MonthlyBudgetView(
-                    items: budgetItems,
+                    items: budgetData,
                     hasTransactions: !transactions.isEmpty,
                     currencyStyle: currencyStyle,
                     onEdit: { prepareBudgetEditor() }
@@ -491,7 +455,12 @@ struct ContentView: View {
             }
         }
         .onChange(of: quickCategory) {
-            lastQuickAddCategoryRaw = quickCategory.rawValue
+            if rememberLastQuickAddCategory {
+                lastQuickAddCategoryRaw = quickCategory.rawValue
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: DispatchQueue.main)) { _ in
+            monthAnchor = Date()
         }
         .onAppear {
             createSavingsGoalOnAppear = false
@@ -502,117 +471,28 @@ struct ContentView: View {
         }
     }
 
-    private var headerView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 10) {
-                Image("gyoza_icon")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 44, height: 44)
-                    .offset(y: 1)
-
-                Text("Gyoza Budget")
-                    .font(.largeTitle.bold())
-                    .foregroundColor(theme.textPrimary)
-            }
-            Text("Track income, expenses, and recent activity.")
-                .foregroundColor(theme.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            GeometryReader { geo in
-                Color.clear
-                    .onAppear {
-                        updateCompactTitleVisibility(using: geo.frame(in: .global).minY)
-                    }
-                    .onChange(of: geo.frame(in: .global).minY) { _, minY in
-                        updateCompactTitleVisibility(using: minY)
-                    }
-            }
-        )
-    }
-
-    private var compactDashboardBar: some View {
-        ZStack {
-            Text("Gyoza Budget")
-                .font(.headline.weight(.semibold))
-                .foregroundColor(theme.textPrimary)
-
-            HStack {
-                Spacer()
-                dashboardTopActions
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
-        .frame(height: showsCompactTitle ? 36 : 0)
-        .opacity(showsCompactTitle ? 1 : 0)
-        .offset(y: showsCompactTitle ? 0 : -6)
-        .clipped()
-        .allowsHitTesting(showsCompactTitle)
-        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: showsCompactTitle)
-    }
-
-    private var dashboardTopActions: some View {
-        HStack(spacing: 2) {
-            settingsToolbarButton
-            addTransactionToolbarButton
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 2)
-        .background(
-            Capsule(style: .continuous)
-                .fill(theme.cardBackground)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .stroke(theme.border, lineWidth: 0.5)
-        )
-    }
-
     private var settingsToolbarButton: some View {
-        Button(action: {
+        Button {
             showingSettings = true
-        }) {
-            topActionIcon(systemName: "gearshape")
+        } label: {
+            Label("Settings", systemImage: "gearshape")
         }
-        .buttonStyle(.plain)
     }
 
     private var addTransactionToolbarButton: some View {
-        Button(action: {
+        Button {
             prepareForm(for: nil)
             showingDeleteConfirmation = false
             showingAddTransaction = true
-        }) {
-            topActionIcon(systemName: "plus")
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func topActionIcon(systemName: String) -> some View {
-        Image(systemName: systemName)
-        .font(.system(size: 15, weight: .medium))
-        .foregroundStyle(.primary)
-        .frame(width: 32, height: 32)
-        .contentShape(Circle())
-    }
-
-    private func updateCompactTitleVisibility(using minY: CGFloat) {
-        let showThreshold: CGFloat = 56
-        let hideThreshold: CGFloat = 68
-        let shouldShowTitle = showsCompactTitle ? minY < hideThreshold : minY < showThreshold
-        if shouldShowTitle != showsCompactTitle {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
-                showsCompactTitle = shouldShowTitle
-            }
+        } label: {
+            Label("Add Transaction", systemImage: "plus")
         }
     }
 
-    private var summaryView: some View {
+    private func summaryView(stats: DashboardStats) -> some View {
         VStack(spacing: 14) {
             NavigationLink(value: FinancialSummaryMode.balance) {
-                BalanceCardView(balance: balance, currencyStyle: currencyStyle)
+                BalanceCardView(balance: stats.balance, currencyStyle: currencyStyle)
             }
             .buttonStyle(.plain)
 
@@ -620,7 +500,7 @@ struct ContentView: View {
                 NavigationLink(value: FinancialSummaryMode.income) {
                     MetricCardView(
                         title: "Income",
-                        value: totalIncome,
+                        value: stats.totalIncome,
                         currencyStyle: currencyStyle,
                         labelColor: theme.premiumCardTextSecondary
                     )
@@ -630,7 +510,7 @@ struct ContentView: View {
                 NavigationLink(value: FinancialSummaryMode.expenses) {
                     MetricCardView(
                         title: "Expenses",
-                        value: totalExpenses,
+                        value: stats.totalExpenses,
                         currencyStyle: currencyStyle,
                         labelColor: theme.premiumCardTextSecondary
                     )
@@ -642,26 +522,6 @@ struct ContentView: View {
 
     private var primaryActionCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                Label(primaryActionBadgeText, systemImage: primaryActionBadgeIcon)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(theme.premiumCardTextPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(theme.accent.opacity(isBudgetSetupHighlighted ? 0.24 : 0.18))
-                    )
-
-                if isBudgetSetupHighlighted {
-                    Text("Recommended Next Step")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(theme.premiumCardTextSecondary)
-                        .textCase(.uppercase)
-                        .tracking(0.35)
-                }
-            }
-
             VStack(alignment: .leading, spacing: 8) {
                 Text(primaryActionTitle)
                     .font(.title3.weight(.bold))
@@ -697,8 +557,9 @@ struct ContentView: View {
         .premiumCard(cornerRadius: 18, glowEnabled: false)
     }
 
-    private var monthlyBudgetPreviewCard: some View {
-        Button {
+    private func monthlyBudgetPreviewCard(items: [BudgetSection.BudgetData]) -> some View {
+        let withTargets = items.filter { $0.target > 0 }
+        return Button {
             if currentGuidedStep == .budgetSetup {
                 prepareBudgetEditor()
             } else {
@@ -713,15 +574,16 @@ struct ContentView: View {
                     Text("Monthly Budget")
                         .font(.title3.weight(.bold))
                         .foregroundColor(theme.premiumCardTextPrimary)
-                    Text(budgetPreviewSummary)
+                    Text(budgetPreviewSummary(withTargets: withTargets))
                         .font(.caption)
                         .foregroundColor(theme.premiumCardTextSecondary)
                         .lineLimit(2)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(budgetPreviewSubtitle)
+                    Text(budgetPreviewSubtitle(withTargets: withTargets))
                         .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
                         .foregroundColor(theme.premiumCardTextSecondary)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
@@ -762,20 +624,6 @@ struct ContentView: View {
         .buttonStyle(.plain)
     }
 
-    private var categoryBreakdownView: some View {
-        CategoryBreakdownSection(
-            totals: expenseCategoryTotals,
-            currencyStyle: currencyStyle
-        )
-    }
-
-    private var categoryChartView: some View {
-        CategoryChartSection(
-            totals: expenseCategoryTotals,
-            currencyStyle: currencyStyle
-        )
-    }
-
     private var recentTransactionsView: some View {
         RecentTransactionsSection(
             transactions: recentTransactions,
@@ -801,29 +649,46 @@ struct ContentView: View {
         showingBudgetEditor = true
     }
 
+    // Non-lossy editing text: no grouping, no scientific notation, no silent rounding.
+    private func editableAmountText(_ value: Double) -> String {
+        value.formatted(.number.grouping(.never).precision(.fractionLength(0...2)))
+    }
+
     private func loadBudgetAmounts() {
         budgetAmounts = Category.budgetCategories.reduce(into: [:]) { partial, category in
             let value = currentMonthBudgetTargets[category]?.amount ?? 0
-            partial[category] = value > 0 ? String(format: "%.0f", value) : ""
+            partial[category] = value > 0 ? editableAmountText(value) : ""
         }
     }
 
     private func saveBudgetTargets() {
         let month = currentMonthStart
+        let monthTargets = Dictionary(
+            grouping: budgetTargets.filter {
+                Calendar.current.isDate($0.month, equalTo: monthAnchor, toGranularity: .month)
+            },
+            by: \.category
+        )
 
         for category in Category.budgetCategories {
-            let text = budgetAmounts[category]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let amount = Double(text) ?? 0
+            let text = (budgetAmounts[category] ?? "").trimmingCharacters(in: .whitespaces)
+            let parsed = AppPreferences.parseAmount(text)
+            // Unparseable non-empty input: leave the saved target untouched
+            // instead of silently deleting it.
+            if !text.isEmpty && parsed == nil { continue }
+            let amount = parsed ?? 0
+            let existing = monthTargets[category] ?? []
 
-            if let existing = currentMonthBudgetTargets[category] {
-                if amount > 0 {
-                    existing.amount = amount
+            if amount > 0 {
+                if let first = existing.first {
+                    first.amount = amount
+                    existing.dropFirst().forEach { modelContext.delete($0) }
                 } else {
-                    modelContext.delete(existing)
+                    let target = BudgetTarget(category: category, amount: amount, month: month)
+                    modelContext.insert(target)
                 }
-            } else if amount > 0 {
-                let target = BudgetTarget(category: category, amount: amount, month: month)
-                modelContext.insert(target)
+            } else {
+                existing.forEach { modelContext.delete($0) }
             }
         }
 
@@ -844,6 +709,7 @@ struct ContentView: View {
                                 if let amount = currentMonthBudgetTargets[category]?.amount, amount > 0 {
                                     Text("Current target: " + amount.formatted(currencyStyle))
                                         .font(.caption)
+                                        .monospacedDigit()
                                         .foregroundColor(theme.textSecondary)
                                 }
                             }
@@ -853,7 +719,9 @@ struct ContentView: View {
                                 set: { budgetAmounts[category] = $0 }
                             ))
                             .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
                             .multilineTextAlignment(.trailing)
+                            .focused($focusedBudgetCategory, equals: category)
 #if os(iOS)
                             .keyboardType(.decimalPad)
 #endif
@@ -882,6 +750,12 @@ struct ContentView: View {
                         saveBudgetTargets()
                     }
                 }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        focusedBudgetCategory = nil
+                    }
+                }
             }
         }
     }
@@ -905,7 +779,7 @@ struct ContentView: View {
 
     private func prepareForm(for transaction: Transaction?) {
         if let transaction {
-            newAmountText = String(format: "%.2f", transaction.amount)
+            newAmountText = editableAmountText(transaction.amount)
             newType = transaction.type
             newCategory = transaction.category
             newDate = transaction.date
@@ -929,10 +803,11 @@ struct ContentView: View {
                     .foregroundColor(theme.textPrimary)
                 ) {
                     TextField("0.00", text: $newAmountText)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
                         .multilineTextAlignment(.leading)
                         .padding(.vertical, 10)
                         .listRowBackground(theme.surface)
+                        .focused($transactionAmountFocused)
 #if os(iOS)
                         .keyboardType(.decimalPad)
 #endif
@@ -1053,23 +928,22 @@ struct ContentView: View {
             .navigationTitle(transaction == nil ? "Add Transaction" : "Edit Transaction")
             .onChange(of: selectedReceiptItem) { _, newItem in
                 guard let newItem else { return }
-                Task {
+                Task { @MainActor in
+                    var processedData: Data?
                     if let data = try? await newItem.loadTransferable(type: Data.self) {
                         // Offload heavy rendering from the MainActor
-                        let processedData = await Task.detached {
+                        processedData = await Task.detached {
                             processedReceiptImageData(from: data)
                         }.value
-                        
-                        if let processedData {
-                            await MainActor.run {
-                                receiptImageData = processedData
-                                hasLoadedReceiptState = true
-                            }
-                        }
                     }
-                    await MainActor.run {
-                        selectedReceiptItem = nil
+                    // Ignore stale loads: Save/Cancel resets selectedReceiptItem,
+                    // so a slow photo can't attach to the next form session.
+                    guard selectedReceiptItem == newItem else { return }
+                    if let processedData {
+                        receiptImageData = processedData
+                        hasLoadedReceiptState = true
                     }
+                    selectedReceiptItem = nil
                 }
             }
             .sheet(isPresented: $showingReceiptPreview) {
@@ -1113,7 +987,13 @@ struct ContentView: View {
                     Button("Save") {
                         saveTransaction(editing: transaction)
                     }
-                    .disabled(Double(newAmountText) == nil || newAmountText.isEmpty)
+                    .disabled((AppPreferences.parseAmount(newAmountText) ?? 0) <= 0)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        transactionAmountFocused = false
+                    }
                 }
             }
             .alert("Are you sure you want to delete this transaction?", isPresented: $showingDeleteConfirmation) {
@@ -1128,8 +1008,7 @@ struct ContentView: View {
     }
 
     private func saveTransaction(editing transaction: Transaction?) {
-        let trimmedAmountText = newAmountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Double(trimmedAmountText), amount > 0 else { return }
+        guard let amount = AppPreferences.parseAmount(newAmountText), amount > 0 else { return }
 
         withAnimation {
             if let transaction {
@@ -1236,8 +1115,7 @@ struct ContentView: View {
     }
 
     private func saveQuickExpense() {
-        let trimmedAmountText = quickAmountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Double(trimmedAmountText), amount > 0 else { return }
+        guard let amount = AppPreferences.parseAmount(quickAmountText), amount > 0 else { return }
 
         withAnimation {
             let transaction = Transaction(
@@ -1331,12 +1209,8 @@ private struct QuickAddExpenseSheet: View {
         themeManager.currentTheme
     }
 
-    private var trimmedAmountText: String {
-        amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private var isAmountValid: Bool {
-        guard let amount = Double(trimmedAmountText) else { return false }
+        guard let amount = AppPreferences.parseAmount(amountText) else { return false }
         return amount > 0
     }
 
@@ -1359,45 +1233,21 @@ private struct QuickAddExpenseSheet: View {
     }
 
     var body: some View {
-        ScrollView {
+        NavigationStack {
+            ScrollView {
             VStack(spacing: 24) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Quick Add Expense")
-                            .font(.title3.weight(.semibold))
-                            .foregroundColor(theme.textPrimary)
-                        Text("Fast capture for a single expense.")
-                            .font(.subheadline)
-                            .foregroundColor(theme.textSecondary)
-                    }
-                    Spacer()
-                    Button {
-                        isPresented = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(theme.textSecondary)
-                            .padding(8)
-                            .background(
-                                Circle()
-                                    .fill(theme.surface.opacity(0.6))
-                            )
-                    }
-                }
-
                 VStack(spacing: 10) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(currencySymbol)
-                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .font(.system(.title, design: .rounded, weight: .semibold))
                             .foregroundColor(theme.textPrimary)
                         TextField("0.00", text: $amountText)
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold).monospacedDigit())
                             .multilineTextAlignment(.center)
                             .focused($amountFieldIsFocused)
 #if os(iOS)
                             .keyboardType(.decimalPad)
                             .textContentType(.none)
-                            .submitLabel(.done)
 #endif
                     }
                     .padding(22)
@@ -1474,15 +1324,27 @@ private struct QuickAddExpenseSheet: View {
                 .disabled(!isAmountValid)
             }
             .padding(20)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("Quick Add Expense")
+#if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+#endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        isPresented = false
+                    }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        amountFieldIsFocused = false
+                    }
+                }
+            }
         }
-        .scrollDismissesKeyboard(.interactively)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(theme.background.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 8)
-        }
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: isPresented)
         .onAppear {
             amountFieldIsFocused = true
         }
@@ -1493,7 +1355,8 @@ private struct QuickAddExpenseSheet: View {
 }
 
 #Preview {
-    ContentView()
+    @Previewable @State var showingQuickAddExpense = false
+    ContentView(showingQuickAddExpense: $showingQuickAddExpense)
         .environmentObject(ThemeManager.shared)
         .modelContainer(for: [Transaction.self, BudgetTarget.self, SavingsGoal.self], inMemory: true)
 }

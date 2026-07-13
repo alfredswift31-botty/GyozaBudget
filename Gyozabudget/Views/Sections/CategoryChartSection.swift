@@ -62,10 +62,13 @@ struct CategoryChartSection: View {
                                             .fill(theme.premiumCardTextSecondary.opacity(0.16))
                                         Capsule()
                                             .fill(theme.accent)
-                                            .frame(width: max(width, 12), height: 8)
+                                            .frame(width: item.amount > 0 ? max(width, 4) : 0, height: 8)
                                     }
                                 }
                                 .frame(height: 10)
+                                .accessibilityElement()
+                                .accessibilityLabel("\(item.category.displayName) spending")
+                                .accessibilityValue(Text(item.amount, format: currencyStyle))
                             }
                         }
                     }
@@ -73,6 +76,6 @@ struct CategoryChartSection: View {
             }
         }
         .padding(20)
-        .premiumCard(cornerRadius: 24, glowEnabled: false)
+        .premiumCard(cornerRadius: 16)
     }
 }
